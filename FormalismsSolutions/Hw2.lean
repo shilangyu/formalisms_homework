@@ -1,3 +1,4 @@
+section Part1
 -- Type of elements and its total order
 variable {α : Type}
 variable (leα : α → α → Bool)
@@ -206,6 +207,45 @@ theorem G1 (x : List α) : ordered (sort x) := by
           rw [A4]
           rw [List.length_cons]
           omega
+end Part1
 
-theorem G2 (x : List α) : permutation x (sort x) := by
-  sorry
+section Part2
+
+variable {α : Type}
+-- Uninterpreted functions
+variable (childOf : α → α → Bool)
+variable (h : α → Bool)
+variable (m : α → Bool)
+-- Descendant
+variable (desc : α → α → Prop)
+axiom desc_wf : WellFounded desc
+
+-- Axioms
+axiom A9 (x y : α) : desc x y ↔ childOf x y ∨ (∃ z, desc x z ∧ childOf z y)
+axiom A10 (x : α) : h x ∨ m x
+
+-- A child is a descendant
+theorem child_of_desc (x y : α)
+  (h : childOf x y) : desc x y := by
+  rw [A9 childOf desc]
+  left
+  exact h
+
+-- If a human is a descendant of a monkey, then there exists a human that is a child of a monkey
+theorem G3 :
+  (∃ x y, desc x y ∧ h x ∧ m y) →
+  (∃ x y, childOf x y ∧ h x ∧ m y) := by
+  intro ⟨x, y, hxy, hx, hy⟩
+  -- we induct on the anscestors
+  induction y using (desc_wf desc).induction generalizing x with
+  | h y ih =>
+    -- are we in the inductive or base case?
+    rcases (A9 childOf desc x y).mp hxy with hchild | ⟨z, hxz, hzy⟩
+    · exact ⟨x, y, hchild, hx, hy⟩
+    · -- is the intermediate a human or a monkey?
+      rcases A10 h m z with hz | hz
+      · exact ⟨z, y, hzy, hz, hy⟩
+      · -- still monkey...
+        exact ih z (child_of_desc childOf desc _ _ hzy) x hxz hx hz
+
+end Part2
