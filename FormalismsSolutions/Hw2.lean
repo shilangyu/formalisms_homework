@@ -50,9 +50,9 @@ axiom A8 (a b : α) (x y : List α) :
 -- Specification of `ordered`
 opaque ordered : List α → Bool
 axiom O1 :
-  ordered ([] : List α) = true
+  ordered ([] : List α)
 axiom O2 (a : α) :
-  ordered (a :: []) = true
+  ordered (a :: [])
 axiom O3 (a b : α) (x : List α) :
   ordered (a :: b :: x) = (a ≼ b ∧ ordered (b :: x))
 
@@ -171,7 +171,7 @@ theorem merge_ordered (x y : List α)
 
 -- Relate the lengths of odd and even lists
 omit leα
-theorem odd_even_smaller (x : List α) : (even x).length + (odd x).length = x.length := by
+theorem odd_even_length (x : List α) : (even x).length + (odd x).length = x.length := by
   induction x with
   | nil => rw [A2, A3]; rfl
   | cons c xs ih => rw [A4, A5, List.length_cons, List.length_cons]; omega
@@ -195,7 +195,7 @@ theorem G1 (x : List α) : ordered (sort x) := by
         -- the left is ordered
         · apply ih (m := (odd (a :: b :: xs)).length) <;> try rfl
           subst n
-          rw (config := {occs := .pos [2]}) [<-odd_even_smaller]
+          rw (config := {occs := .pos [2]}) [<-odd_even_length]
           rw [A5]
           rw (config := {occs := .pos [2]}) [A4]
           rw [List.length_cons]
@@ -203,7 +203,7 @@ theorem G1 (x : List α) : ordered (sort x) := by
         -- the right is ordered
         · apply ih (m := (even (a :: b :: xs)).length) <;> try rfl
           subst n
-          rw (config := {occs := .pos [2]}) [<-odd_even_smaller]
+          rw (config := {occs := .pos [2]}) [<-odd_even_length]
           rw [A4]
           rw [List.length_cons]
           omega
