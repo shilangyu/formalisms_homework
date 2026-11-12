@@ -1,0 +1,10 @@
+name = "formalisms_solutions"
+version = "0.1.0"
+defaultTargets = ["formalisms_solutions"]
+
+[[lean_lib]]
+name = "FormalismsSolutions"
+
+[[lean_exe]]
+name = "formalisms_solutions"
+root = "Main"
