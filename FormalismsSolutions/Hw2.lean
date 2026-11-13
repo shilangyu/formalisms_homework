@@ -58,12 +58,17 @@ axiom O3 (a b : α) (x : List α) :
 
 -- Specification of `permutation`
 opaque permutation : List α → List α → Bool
--- axiom P1 :
---   permutation ([] : List α) = true
--- axiom O2 (a : α) :
---   ordered (a :: []) = true
--- axiom O3 (a b : α) (x : List α) :
---   ordered (a :: b :: x) = (a ≤ b ∧ ordered (b :: x))
+axiom P1 :
+  permutation ([] : List α) [] = true
+axiom P2 (a : α) (x y z : List α) :
+  permutation (a :: x) (y ++ a :: z) = permutation x (y ++ z)
+axiom P3 (a : α) (x y : List α) (h : a ∉ y) :
+  permutation (a :: x) y = false
+-- Transitivity and symmetry is not provable and needs to be axiomatized.
+-- Instead, I could add more axioms describing permutation to also describe what is NOT a permutation.
+-- Here, we will just state the positive cases (+ P3).
+axiom P4 (x y z : List α) : permutation x y -> permutation y z -> permutation x z
+axiom P5 (x y : List α) : permutation x y = permutation y x
 
 
 -- Theorem G1: every sorted input is ordered
@@ -207,6 +212,134 @@ theorem G1 (x : List α) : ordered (sort x) := by
           rw [A4]
           rw [List.length_cons]
           omega
+
+
+-- Theorem G2: every sorted input is a permutation of the input
+
+-- Permutation is reflexive
+omit leα
+theorem permutation_rfl (x : List α) : permutation x x := by
+  induction x with
+  | nil => exact P1
+  | cons a xs ih =>
+    rw (config := {occs := .pos [2]}) [<-List.nil_append (a :: xs)]
+    rw [P2]
+    exact ih
+
+-- We can pop the heads in a permutation
+theorem permutation_cons (a : α) (l1 l2 : List α) :
+  permutation (a :: l1) (a :: l2) = permutation l1 l2 := by
+  rw [<-List.nil_append (a :: l2), P2]
+  rfl
+
+-- Merge is a permutation of append
+include leα
+theorem permutation_merge (x y : List α) : permutation (merge x y) (x ++ y) := by
+  induction x generalizing y with
+  | nil =>
+    rw [A6]
+    exact permutation_rfl _
+  | cons a xs ih_x =>
+    induction y with
+    | nil =>
+      rw [A7, List.append_nil]
+      exact permutation_rfl _
+    | cons b ys ih_y =>
+      rw [A8 leα]
+      split
+      case isTrue =>
+        -- heads are the same + IH
+        rw [List.cons_append, permutation_cons, ih_x]
+      case isFalse =>
+        rw [P2, ih_y]
+
+
+-- Append of x y is a permutation of append of y x
+omit leα
+theorem permutation_append (x y : List α) : permutation (x ++ y) (y ++ x) := by
+  induction x generalizing y with
+  | nil =>
+    rw [List.append_nil, List.nil_append, permutation_rfl]
+  | cons a xs ih =>
+    rw [List.cons_append, P2, ih]
+
+-- Append of odd even is a permutation of x
+omit leα
+theorem permutation_odd_even (x : List α) : permutation (odd x ++ even x) x := by
+  induction x with
+  | nil =>
+    rw [A2, A3]
+    exact P1
+  | cons a xs ih =>
+    rw [A4, A5, List.cons_append, <-List.nil_append (a :: xs), P2]
+    exact P4 _ _ _ (permutation_append (even xs) (odd xs)) ih
+
+-- Inversion lemma for the nil case
+theorem permutation_nil_inv (x : List α)
+    (h : permutation [] x) : x = [] := by
+  cases x with
+  | nil => rfl
+  | cons a z =>
+    rw [P5, P3] at h
+    · contradiction
+    · intro h
+      contradiction
+
+-- Inversion lemma for the step case
+theorem permutation_cons_inv (a : α) (x w : List α)
+    (h : permutation (a :: x) w) :
+    ∃ u v, w = u ++ a :: v ∧ permutation x (u ++ v) := by
+  by_cases ha : a ∈ w
+  · obtain ⟨u, v, rfl⟩ := List.append_of_mem ha
+    rw [P2] at h
+    exact ⟨u, v, rfl, h⟩
+  · rw [P3 _ _ _ ha] at h
+    contradiction
+
+-- Permutation is preserved under appends
+omit leα
+theorem permutation_append_preserve (x x' y y' : List α)
+    (hx : permutation x x') (hy : permutation y y') : permutation (x ++ y) (x' ++ y') := by
+  induction x generalizing x' y y' with
+  | nil =>
+    rw [permutation_nil_inv _ hx]
+    exact hy
+  | cons a xs ih =>
+    obtain ⟨u, v, rfl, h_sub⟩ := permutation_cons_inv a xs x' hx
+    rw [List.cons_append, List.append_assoc, List.cons_append, P2, <-List.append_assoc]
+    exact ih _ _ _ h_sub hy
+
+include leα
+theorem G2 (x : List α) : permutation (sort x) x = true := by
+  have ⟨n, hn⟩ : ∃ n, x.length = n := exists_eq'
+  induction n using Nat.strongRecOn generalizing x with
+  | ind n ih =>
+    cases x with
+    | nil => rw [A0, P1]
+    | cons a xs =>
+      cases xs with
+      | nil => rw [A0', permutation_rfl]
+      | cons b xs =>
+        rw [A1]
+        -- setup one big transitive
+        have h_split := permutation_odd_even (a :: b :: xs)
+        have h_odd := ih (m := (odd (a :: b :: xs)).length) (by
+          subst n
+          rw (config := {occs := .pos [2]}) [<-odd_even_length]
+          rw [A5, A4, List.length_cons, A4]
+          simp) (odd (a :: b :: xs)) rfl
+        have h_even := ih (m := (even (a :: b :: xs)).length) (by
+          subst n
+          rw (config := {occs := .pos [2]}) [<-odd_even_length]
+          rw [A4, List.length_cons]
+          omega) (even (a :: b :: xs)) rfl
+        have h_merge := permutation_merge leα (sort (odd (a :: b :: xs))) (sort (even (a :: b :: xs)))
+        have h_odd_even : permutation (sort (odd (a :: b :: xs)) ++ sort (even (a :: b :: xs))) (odd (a :: b :: xs) ++ even (a :: b :: xs)) := permutation_append_preserve _ _ _ _ h_odd h_even
+
+        apply P4 _ _ _ h_merge
+        apply P4 _ _ _ h_odd_even
+        exact h_split
+
 end Part1
 
 section Part2
