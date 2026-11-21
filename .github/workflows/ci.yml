@@ -1,4 +1,4 @@
-name: Lean Action CI
+name: CI
 
 on:
   push:
@@ -11,4 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: ^0.15.1
       - uses: leanprover/lean-action@v1
